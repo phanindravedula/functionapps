@@ -1,21 +1,27 @@
+using namespace System.Net
+
 # Input bindings are passed in via param block.
-param($Timer)
+param($Request, $TriggerMetadata)
 
-# Get the current universal time in the default string format.
-$currentUTCtime = (Get-Date).ToUniversalTime()
+# Write to the Azure Functions log stream.
+Write-Host "PowerShell HTTP trigger function processed a request."
 
-# The 'IsPastDue' property is 'true' when the current function invocation is later than scheduled.
-if ($Timer.IsPastDue) {
-    Write-Host "PowerShell timer is running late!"
+# Interact with query parameters or the body of the request.
+$name = $Request.Query.Name
+if (-not $name) {
+    $name = $Request.Body.Name
 }
 
-# Write an information log with the current time.
-Write-Host "PowerShell timer trigger function ran! TIME: $currentUTCtime"
+$body = "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
 
-$VMNames = @(Linux-VM-01,Linux-VM-02)
+if ($name) {
+     
+     Get-AzVM -Name $name | Start-AzVM -NoWait 
+     $body = "VM $name started successfully."
+}
 
-foreach ($VMName in $VMNames)
-{
-    Write-Host "Starting VM : $VMName"
-    Get-AzVM -Name $VMName | Start-AzVM -NoWait 
-}  
+# Associate values to output bindings by calling 'Push-OutputBinding'.
+Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+    StatusCode = [HttpStatusCode]::OK
+    Body = $body
+})
